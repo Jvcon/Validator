@@ -26,7 +26,11 @@ jobs:
       run: dotnet restore ./validator.csproj
 
     - name: Build project
-      run: dotnet build ./validator.csproj --configuration Release --no-restore
+      run: |
+        if (Test-Path -Path dist) {
+          Remove-Item -Recurse -Force dist
+        }
+        dotnet build ./validator.csproj --configuration Release --no-restore
 
     - name: Publish project
       run: dotnet publish ./validator.csproj --configuration Release --no-build --output ./dist
