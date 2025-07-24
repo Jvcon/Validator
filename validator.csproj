@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AHKestra</RootNamespace>
+    <AssemblyName>validator</AssemblyName>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 这是一个免费且开源的库，用于验证JSON Schema -->
+    <PackageReference Include="NJsonSchema" Version="11.0.1" /> 
+    <!-- 最新版本可能会更新，11.x 是一个稳定且功能丰富的版本 -->
+  </ItemGroup>
+
+</Project>

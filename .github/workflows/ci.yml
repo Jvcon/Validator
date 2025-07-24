@@ -1,0 +1,74 @@
+name: .NET Build and Release
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # [Use the .NET SDK in Continuous Integration (CI) environments ...](https://learn.microsoft.com/en-us/dotnet/devops/dotnet-cli-and-continuous-integration){target="_blank" class="gpt-web-url"}
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        # 虽然是 .NET Framework 项目，但我们需要 .NET SDK 来执行构建命令
+        dotnet-version: '8.x'
+
+    - name: Restore dependencies
+      run: dotnet restore ./validator.csproj
+
+    - name: Build project
+      run: dotnet build ./validator.csproj --configuration Release --no-restore
+
+    - name: Publish project
+      run: dotnet publish ./validator.csproj --configuration Release --no-build --output ./dist
+
+    - name: Create Checksums
+      run: |
+        cd ./dist
+        Get-ChildItem . | ForEach-Object {
+          $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
+          "$hash *$($_.Name)" | Out-File -FilePath "checksums.sha256" -Append -Encoding utf8
+        }
+        cd ..
+
+    - name: Package release assets
+      run: Compress-Archive -Path ./dist/* -DestinationPath ./dist/validator.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: validator-release
+        path: |
+          ./dist/validator.zip
+          ./dist/checksums.sha256
+
+  release:
+    # 仅当创建了新标签时才运行此 job
+    # [Lessons Learned: Migrating from AppVeyor to GitHub Actions - DEV ...](https://dev.to/petrsvihlik/lessons-learned-migrating-from-appveyor-to-github-actions-1gh8){target="_blank" class="gpt-web-url"}
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: validator-release
+        path: ./release-assets
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ./release-assets/validator.zip
+          ./release-assets/checksums.sha256
+        token: ${{ secrets.GITHUB_TOKEN }}
