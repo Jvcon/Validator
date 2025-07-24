@@ -1,16 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NJsonSchema;
 using NJsonSchema.Validation;
-using JsonSchemaTool.Models; 
+using AHKestra.Models; 
 
 namespace AHKestra
 {
- /// <summary>
+    /// <summary>
     /// 封装了核心的 JSON Schema 验证逻辑。
     /// 这个类不关心命令行或控制台，只负责验证。
     /// </summary>

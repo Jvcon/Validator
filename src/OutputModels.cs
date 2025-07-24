@@ -1,9 +1,8 @@
 // /src/OutputModels.cs
 
 using System.Text.Json.Serialization;
-using System.Collections.Generic; 
 
-namespace JsonSchemaTool.Models
+namespace AHKestra.Models
 {
     /// <summary>
     /// 代表单次验证操作的总体结果。

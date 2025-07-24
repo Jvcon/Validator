@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using System.CommandLine;
 using System.Text.Json; 
-using JsonSchemaTool.Models; 
+using AHKestra.Models; 
 
 namespace AHKestra
 {
@@ -12,49 +8,58 @@ namespace AHKestra
     {
         public static async Task<int> Main(string[] args)
         {
-            // 1. 简化参数校验：必须至少有 schema 和一个 manifest
-            if (args.Length < 2)
+             public static async Task<int> Main(string[] args)
+        {
+            // 1. 定义我们需要的参数和选项
+            var schemaArgument = new Argument<FileInfo>(
+                name: "schema",
+                description: "Path to the JSON Schema file.")
             {
-                PrintHelp();
-                return 1;
-            }
-            var format = GetArgumentValue(args, "--format") ?? "text";
-            var operationalArgs = args.Where(a => !a.StartsWith("--format")).ToArray();
+                // 确保文件存在
+                Arity = ArgumentArity.ExactlyOne
+            };
+            schemaArgument.ExistingOnly();
 
-            var schemaPath = operationalArgs[0];
-            var manifestPaths = operationalArgs.Skip(1);
-
-            var validator = new Validator();
-            bool allFilesValid = true; 
-
-            try
+            var manifestsArgument = new Argument<FileInfo[]>(
+                name: "manifests",
+                description: "One or more paths to JSON manifest files to validate.")
             {
-                // 调用验证引擎，获取按文件分组的结果
-                var validationResults = await validator.ValidateAsync(schemaPath, manifestPaths);
-                allFilesValid = validationResults.All(r => r.IsValid);
+                // 允许多个文件
+                Arity = ArgumentArity.OneOrMore
+            };
+            manifestsArgument.ExistingOnly();
 
-                if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 机器可读输出
-                    var report = new ValidationReport(allFilesValid, validationResults);
-                    var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
-                    Console.WriteLine(JsonSerializer.Serialize(report, jsonOptions));
-                }
-                else
-                {
-                    // 人类可读输出
-                    PrintHumanReadableOutput(validationResults);
-                }
-            }
-            catch (Exception ex)
+            var formatOption = new Option<string>(
+                name: "--format",
+                // 为选项提供默认值和描述
+                getDefaultValue: () => "text",
+                description: "The output format ('text' or 'json').");
+            formatOption.AddAlias("-f"); 
+
+            var rootCommand = new RootCommand("A command-line tool to validate JSON files against a JSON Schema, for the AHKestra project.")
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine($"A critical error occurred: {ex.Message}");
-                Console.ResetColor();
-                return 1; // 致命错误，返回失败
-            }
+                schemaArgument,
+                manifestsArgument,
+                formatOption
+            };
 
-            return allFilesValid ? 0 : 1;
+            // 3. 设置处理程序，将解析后的参数直接、安全地传递给我们的业务逻辑
+            rootCommand.SetHandler(async (schema, manifests, format) =>
+            {
+                // 这里的 schema, manifests, format 都是已经由 System.CommandLine 
+                // 解析并验证过的强类型对象，不再需要手动处理 string[] args。
+                await RunValidationAsync(schema, manifests, format);
+            }, schemaArgument, manifestsArgument, formatOption);
+
+            // 4. 执行命令，库会自动处理解析、错误报告和帮助文本显示
+            return await rootCommand.InvokeAsync(args);
+        }
+
+        private static void PrintJsonOutput(bool allValid, List<FileValidationResult> results)
+        {
+            var report = new ValidationReport(allValid, results);
+            var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+            Console.WriteLine(JsonSerializer.Serialize(report, jsonOptions));
         }
 
         private static void PrintHumanReadableOutput(List<FileValidationResult> results)
