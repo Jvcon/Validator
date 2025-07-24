@@ -51,7 +51,7 @@ jobs:
     - name: Package release assets
       run: |
         Compress-Archive -Path ./dist/validator.exe -DestinationPath ./dist/validator.zip
-        Get-FileHash -Path ./dist/validator.zip -Algorithm SHA256 | Select-Object -ExpandProperty Hash | Out-File -FilePath .dist/validator.zip.sha256
+        Get-FileHash -Path ./dist/validator.zip -Algorithm SHA256 | Select-Object -ExpandProperty Hash | Out-File -FilePath ./dist/validator.zip.sha256
     
     - name: Upload release
       uses: actions/upload-artifact@v4
