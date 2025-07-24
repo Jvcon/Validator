@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.CommandLine;
 using System.Text.Json; 
 using AHKestra.Models; 
@@ -13,8 +8,7 @@ namespace AHKestra
     {
         public static async Task<int> Main(string[] args)
         {
-             public static async Task<int> Main(string[] args)
-        {
+  
             // 1. 定义我们需要的参数和选项
             var schemaArgument = new Argument<FileInfo>(
                 name: "schema",
@@ -60,6 +54,37 @@ namespace AHKestra
             return await rootCommand.InvokeAsync(args);
         }
 
+        // 核心业务逻辑
+        private static async Task RunValidationAsync(FileInfo schema, FileInfo[] manifests, string format)
+        {
+            var validator = new Validator();
+            var manifestPaths = manifests.Select(m => m.FullName);
+            
+            try
+            {
+                var validationResults = await validator.ValidateAsync(schema.FullName, manifestPaths);
+                var allFilesValid = validationResults.All(r => r.IsValid);
+
+                if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    PrintJsonOutput(allFilesValid, validationResults);
+                }
+                else
+                {
+                    PrintHumanReadableOutput(validationResults);
+                }
+                
+                Environment.ExitCode = allFilesValid ? 0 : 1;
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.WriteLine($"A critical error occurred: {ex.Message}");
+                Console.ResetColor();
+                Environment.ExitCode = 1;
+            }
+        }
+
         private static void PrintJsonOutput(bool allValid, List<FileValidationResult> results)
         {
             var report = new ValidationReport(allValid, results);
@@ -93,32 +118,6 @@ namespace AHKestra
                 }
                 Console.WriteLine();
             }
-        }
-
-
-        private static string? GetArgumentValue(string[] args, string argName)
-        {
-            var index = Array.FindIndex(args, a => a.Equals(argName, StringComparison.OrdinalIgnoreCase));
-            if (index != -1 && index + 1 < args.Length)
-            {
-                // 确保我们不把下一个参数误认为是值
-                if (!args[index + 1].StartsWith("--"))
-                {
-                    return args[index + 1];
-                }
-            }
-            return null;
-        }
-
-        private static void PrintHelp()
-        {
-            Console.WriteLine("JSON Schema Validator CLI");
-            Console.WriteLine("-------------------------");
-            Console.WriteLine("\nUsage:");
-            Console.WriteLine("  validator.exe <schema_path> <manifest_path_1> [<manifest_path_2>...]");
-            Console.WriteLine("\nArguments:");
-            Console.WriteLine("  <schema_path>        Path to the JSON Schema file.");
-            Console.WriteLine("  <manifest_path>      One or more paths to JSON manifest files to validate.");
         }
     }
 }
