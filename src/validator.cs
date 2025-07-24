@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json; 
 using JsonSchemaTool.Models; 
 
 namespace AHKestra
@@ -24,12 +25,13 @@ namespace AHKestra
             var manifestPaths = operationalArgs.Skip(1);
 
             var validator = new Validator();
+            bool allFilesValid = true; 
 
             try
             {
                 // 调用验证引擎，获取按文件分组的结果
                 var validationResults = await validator.ValidateAsync(schemaPath, manifestPaths);
-                var allFilesValid = validationResults.All(r => r.IsValid);
+                allFilesValid = validationResults.All(r => r.IsValid);
 
                 if (format.Equals("json", StringComparison.OrdinalIgnoreCase))
                 {
@@ -43,8 +45,6 @@ namespace AHKestra
                     // 人类可读输出
                     PrintHumanReadableOutput(validationResults);
                 }
-                
-                return allFilesValid ? 0 : 1;
             }
             catch (Exception ex)
             {
@@ -88,8 +88,16 @@ namespace AHKestra
 
         private static string? GetArgumentValue(string[] args, string argName)
         {
-        var index = Array.FindIndex(args, a => a.Equals(argName, StringComparison.OrdinalIgnoreCase));
-        return (index != -1 && index + 1 < args.Length) ? args[index + 1] : null;
+            var index = Array.FindIndex(args, a => a.Equals(argName, StringComparison.OrdinalIgnoreCase));
+            if (index != -1 && index + 1 < args.Length)
+            {
+                // 确保我们不把下一个参数误认为是值
+                if (!args[index + 1].StartsWith("--"))
+                {
+                    return args[index + 1];
+                }
+            }
+            return null;
         }
 
         private static void PrintHelp()

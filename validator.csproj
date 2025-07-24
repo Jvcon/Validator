@@ -7,6 +7,7 @@
     <RootNamespace>AHKestra</RootNamespace>
     <AssemblyName>validator</AssemblyName>
     <Deterministic>true</Deterministic>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
