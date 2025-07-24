@@ -1,6 +1,7 @@
 // /src/OutputModels.cs
 
 using System.Text.Json.Serialization;
+using System.Collections.Generic; 
 
 namespace JsonSchemaTool.Models
 {
