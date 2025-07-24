@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NJsonSchema;
 using NJsonSchema.Validation; // <-- 确保引用了验证的命名空间
+using JsonSchemaTool.Models; // 引用我们新的数据模型
 
 namespace AHKestra
 {
