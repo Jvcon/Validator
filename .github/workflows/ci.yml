@@ -35,25 +35,32 @@ jobs:
     - name: Publish project
       run: dotnet publish ./validator.csproj --configuration Release --no-build --output ./dist
 
-    - name: Create Checksums
+    - name: Package artifact assets
       run: |
-        cd ./dist
-        Get-ChildItem . -File | ForEach-Object {
-          $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
-          "$hash *$($_.Name)" | Out-File -FilePath "checksums.sha256" -Append -Encoding utf8
-        }
-        cd ..
+        Compress-Archive -Path ./dist/* -DestinationPath ./dist/validator-artifact.zip
+        Get-FileHash -Path ./dist/validator-artifact.zip -Algorithm SHA256 | Select-Object -ExpandProperty Hash | Out-File -FilePath ./dist/validator-artifact.zip.sha256
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: validator-artifact
+        path: |
+          ./dist/validator-artifact.zip
+          ./dist/validator-artifact.zip.sha256
 
     - name: Package release assets
-      run: Compress-Archive -Path ./dist/* -DestinationPath ./dist/validator.zip
-
-    - name: Upload artifact
+      run: |
+        Compress-Archive -Path ./dist/validator.exe -DestinationPath ./dist/validator.zip
+        Get-FileHash -Path ./dist/validator.zip -Algorithm SHA256 | Select-Object -ExpandProperty Hash | Out-File -FilePath .dist/validator.zip.sha256
+    
+    - name: Upload release
       uses: actions/upload-artifact@v4
       with:
         name: validator-release
         path: |
           ./dist/validator.zip
-          ./dist/checksums.sha256
+          ./dist/validator.zip.sha256
+
 
   release:
     # 仅当创建了新标签时才运行此 job
@@ -74,5 +81,5 @@ jobs:
       with:
         files: |
           ./release-assets/validator.zip
-          ./release-assets/checksums.sha256
+          ./release-assets/validator.zip.sha256
         token: ${{ secrets.GITHUB_TOKEN }}
