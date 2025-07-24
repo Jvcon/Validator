@@ -38,7 +38,7 @@ jobs:
     - name: Create Checksums
       run: |
         cd ./dist
-        Get-ChildItem . | ForEach-Object {
+        Get-ChildItem . -File | ForEach-Object {
           $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
           "$hash *$($_.Name)" | Out-File -FilePath "checksums.sha256" -Append -Encoding utf8
         }
