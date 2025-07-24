@@ -9,12 +9,28 @@ using NJsonSchema.Validation; // <-- 确保引用了验证的命名空间
 
 namespace AHKestra
 {
-    public static class Validator
+ /// <summary>
+    /// 封装了核心的 JSON Schema 验证逻辑。
+    /// 这个类不关心命令行或控制台，只负责验证。
+    /// </summary>
+    public class Validator
     {
-        public static async Task<ICollection<string>> Validate(string schemaPath, string manifestPath, bool ci)
+        /// <summary>
+        /// 根据一个 Schema 文件，验证多个 Manifest 文件。
+        /// </summary>
+        /// <param name="schemaPath">JSON Schema 文件的路径。</param>
+        /// <param name="manifestPaths">待验证的 JSON Manifest 文件路径列表。</param>
+        /// <returns>
+        /// 一个字典，其键是 Manifest 文件名，值是该文件的验证错误列表。
+        /// 如果某个文件验证通过，其对应的错误列表将为空。
+        /// </returns>
+        public async Task<List<FileValidationResult>> ValidateAsync(
+            string schemaPath,
+            IEnumerable<string> manifestPaths)
         {
-            var errors = new List<string>();
+            var results = new List<FileValidationResult>();
 
+            // 1. 一次性加载 Schema，以供后续所有文件验证使用
             JsonSchema schema;
             try
             {
@@ -22,48 +38,35 @@ namespace AHKestra
             }
             catch (Exception ex)
             {
-                errors.Add($"Error reading schema file '{schemaPath}': {ex.Message}");
-                return errors;
-            }
-            
-            string manifestContent;
-            try
-            {
-                manifestContent = File.ReadAllText(manifestPath, Encoding.UTF8);
-            }
-            catch (Exception ex)
-            {
-                errors.Add($"Error reading manifest file '{manifestPath}': {ex.Message}");
-                return errors;
+                // 如果 Schema 本身加载失败，这是一个致命错误，直接抛出
+                throw new InvalidOperationException($"Failed to load schema from '{schemaPath}'.", ex);
             }
 
-            // 对 JSON 内容进行验证
-            ICollection<ValidationError> validationErrors = schema.Validate(manifestContent);
-
-            if (validationErrors.Count == 0)
+            // 2. 遍历并验证每一个 Manifest 文件
+            foreach (var path in manifestPaths)
             {
-                return errors; // 返回空列表，表示验证通过
+                if (!File.Exists(path))
+                {
+                    var fileNotFound = new SimplifiedValidationError("FileError", path, "", 0);
+                    results.Add(new FileValidationResult(path, false, new List<SimplifiedValidationError> { fileNotFound }));
+                    continue;
+                }
+
+                var jsonContent = await File.ReadAllTextAsync(path);
+                var validationErrors = schema.Validate(jsonContent);
+
+                var simplifiedErrors = validationErrors
+                    .Select(err => new SimplifiedValidationError(
+                        ErrorType: err.Kind.ToString(),
+                        Path: err.Path ?? "N/A",
+                        Property: err.Property ?? "N/A",
+                        LineNumber: err.LineNumber))
+                    .ToList();
+
+                results.Add(new FileValidationResult(path, simplifiedErrors.Count == 0, simplifiedErrors));
             }
 
-            // --- 这是需要修改的核心部分 ---
-            foreach (var error in validationErrors)
-            {
-                StringBuilder sb = new StringBuilder();
-                var prefix = ci ? "    " : "";
-                
-                // 使用 error.Kind 来获取具体的错误类型，代替不存在的 error.Description
-                // 使用 error.Path 来指明错误位置
-                sb.AppendLine($"{prefix}{(ci ? "[*]" : "-")} Error: Validation failed at path '{error.Path}'.");
-                
-                // 使用结构化的信息构建更清晰的错误报告
-                sb.AppendLine($"{prefix}  {(ci ? "[^]" : " ")} Kind: {error.Kind}");
-                sb.AppendLine($"{prefix}  {(ci ? "[^]" : " ")} Property: '{error.Property}'");
-                sb.AppendLine($"{prefix}  {(ci ? "[^]" : " ")} Location: Line {error.LineNumber}:{error.LinePosition}");
-                
-                errors.Add(sb.ToString().TrimEnd());
-            }
-
-            return errors;
+            return results;
         }
     }
 }
